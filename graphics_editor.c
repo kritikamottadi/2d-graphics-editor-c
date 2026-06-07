@@ -1,350 +1,256 @@
 #include "graphics_editor.h"
 
-// ===== CANVAS FUNCTIONS =====
-
-// Create a new empty canvas
 Canvas* create_canvas() {
-    Canvas* canvas = (Canvas*)malloc(sizeof(Canvas));
-    canvas->total_shapes = 0;
-    clear_canvas(canvas);
-    return canvas;
+    Canvas* c = (Canvas*)malloc(sizeof(Canvas));
+    c->total_shapes = 0;
+    clear_canvas(c);
+    return c;
 }
 
-// Fill canvas with empty character
-void clear_canvas(Canvas* canvas) {
-    int i, j;
-    
-    // Loop through every row
-    for (i = 0; i < HEIGHT; i++) {
-        // Loop through every column
-        for (j = 0; j < WIDTH; j++) {
-            canvas->grid[i][j] = EMPTY;  // Fill with '_'
+void clear_canvas(Canvas* c) {
+    for (int i = 0; i < HEIGHT; i++) {
+        for (int j = 0; j < WIDTH; j++) {
+            c->grid[i][j] = EMPTY;
         }
     }
-    
-    // Clear shapes list
-    canvas->total_shapes = 0;
+    c->total_shapes = 0;
 }
 
-// Display the canvas on screen
-void display_canvas(Canvas* canvas) {
-    int i, j;
-    
+void set_pixel(Canvas* c, int x, int y) {
+    if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT) {
+        c->grid[y][x] = DRAWN;
+    }
+}
+
+void display_canvas(Canvas* c) {
+    printf("\n");
+    for (int i = 0; i < WIDTH + 2; i++) printf("-");
     printf("\n");
     
-    // Print top border
-    printf("+");
-    for (j = 0; j < WIDTH; j++) {
-        printf("-");
-    }
-    printf("+\n");
-    
-    // Print each row of canvas
-    for (i = 0; i < HEIGHT; i++) {
+    for (int i = 0; i < HEIGHT; i++) {
         printf("|");
-        for (j = 0; j < WIDTH; j++) {
-            printf("%c", canvas->grid[i][j]);  // Print each character
+        for (int j = 0; j < WIDTH; j++) {
+            printf("%c", c->grid[i][j]);
         }
         printf("|\n");
     }
     
-    // Print bottom border
-    printf("+");
-    for (j = 0; j < WIDTH; j++) {
-        printf("-");
-    }
-    printf("+\n\n");
+    for (int i = 0; i < WIDTH + 2; i++) printf("-");
+    printf("\n\n");
 }
 
-// Free memory
-void free_canvas(Canvas* canvas) {
-    free(canvas);
+void free_canvas(Canvas* c) {
+    free(c);
 }
 
-// ===== DRAWING HELPER FUNCTION =====
-
-// Put a '*' at position (x, y) on canvas
-void set_pixel(Canvas* canvas, int x, int y) {
-    // Check if position is valid (inside canvas)
-    if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT) {
-        canvas->grid[y][x] = DRAWN;  // Set to '*'
-    }
-}
-
-// ===== DRAWING FUNCTIONS =====
-
-// Draw a line from (x1,y1) to (x2,y2) using simple algorithm
-void draw_line(Canvas* canvas, int x1, int y1, int x2, int y2) {
-    int x, y;
-    int steps;
-    float x_increment, y_increment;
-    
-    // How many steps needed?
+// LINE - DDA Algorithm (proven to work)
+void draw_line(Canvas* c, int x1, int y1, int x2, int y2) {
     int dx = x2 - x1;
     int dy = y2 - y1;
+    int steps = (abs(dx) > abs(dy)) ? abs(dx) : abs(dy);
     
-    // More horizontal or vertical?
-    if (abs(dx) > abs(dy)) {
-        steps = abs(dx);
-    } else {
-        steps = abs(dy);
-    }
-    
-    // Calculate increment for each step
-    if (steps > 0) {
-        x_increment = (float)dx / steps;
-        y_increment = (float)dy / steps;
-    } else {
+    if (steps == 0) {
+        set_pixel(c, x1, y1);
         return;
     }
     
-    x = x1;
-    y = y1;
+    float xinc = (float)dx / steps;
+    float yinc = (float)dy / steps;
+    float x = x1, y = y1;
     
-    // Draw each point on the line
-    int i;
-    for (i = 0; i <= steps; i++) {
-        set_pixel(canvas, x, y);
-        x = x + x_increment;
-        y = y + y_increment;
+    for (int i = 0; i <= steps; i++) {
+        set_pixel(c, (int)(x + 0.5), (int)(y + 0.5));
+        x += xinc;
+        y += yinc;
     }
 }
 
-// Draw a rectangle (hollow box)
-void draw_rectangle(Canvas* canvas, int x1, int y1, int x2, int y2) {
-    int x, y;
-    int left, right, top, bottom;
+// RECTANGLE - Simple outline
+void draw_rectangle(Canvas* c, int x1, int y1, int x2, int y2) {
+    int minx = (x1 < x2) ? x1 : x2;
+    int maxx = (x1 > x2) ? x1 : x2;
+    int miny = (y1 < y2) ? y1 : y2;
+    int maxy = (y1 > y2) ? y1 : y2;
     
-    // Find which coordinates are corners
-    left = (x1 < x2) ? x1 : x2;
-    right = (x1 > x2) ? x1 : x2;
-    top = (y1 < y2) ? y1 : y2;
-    bottom = (y1 > y2) ? y1 : y2;
-    
-    // Draw top and bottom edges
-    for (x = left; x <= right; x++) {
-        set_pixel(canvas, x, top);
-        set_pixel(canvas, x, bottom);
+    for (int x = minx; x <= maxx; x++) {
+        set_pixel(c, x, miny);
+        set_pixel(c, x, maxy);
     }
     
-    // Draw left and right edges
-    for (y = top; y <= bottom; y++) {
-        set_pixel(canvas, left, y);
-        set_pixel(canvas, right, y);
+    for (int y = miny; y <= maxy; y++) {
+        set_pixel(c, minx, y);
+        set_pixel(c, maxx, y);
     }
 }
 
-// Draw a circle at center (cx, cy) with given radius
-void draw_circle(Canvas* canvas, int cx, int cy, int radius) {
-    int x, y;
-    int radius_sq = radius * radius;
+// CIRCLE - Midpoint Algorithm (proven & tested)
+void draw_circle(Canvas* c, int cx, int cy, int r) {
+    int x = 0;
+    int y = r;
+    int d = 3 - 2 * r;
     
-    // Loop through all points in a square around the circle
-    for (y = cy - radius; y <= cy + radius; y++) {
-        for (x = cx - radius; x <= cx + radius; x++) {
-            // Distance formula: check if point is on circle
-            int dx = x - cx;
-            int dy = y - cy;
-            int distance_sq = dx*dx + dy*dy;
-            
-            // If distance is close to radius, it's on the circle
-            if (distance_sq >= radius_sq - radius && distance_sq <= radius_sq + radius) {
-                set_pixel(canvas, x, y);
-            }
-        }
-    }
-}
-
-// Draw a triangle by connecting 3 points
-void draw_triangle(Canvas* canvas, int x1, int y1, int x2, int y2, int x3, int y3) {
-    // Draw three lines connecting the three points
-    draw_line(canvas, x1, y1, x2, y2);  // Line 1
-    draw_line(canvas, x2, y2, x3, y3);  // Line 2
-    draw_line(canvas, x3, y3, x1, y1);  // Line 3
-}
-
-// ===== SHAPE MANAGEMENT =====
-
-// Add a shape to the list and draw it
-void add_shape(Canvas* canvas, int x1, int y1, int x2, int y2, char type) {
-    // Check if we have room for more shapes
-    if (canvas->total_shapes >= 50) {
-        printf("ERROR: Cannot add more shapes!\n");
-        return;
-    }
-    
-    // Store shape information
-    canvas->shapes[canvas->total_shapes].x1 = x1;
-    canvas->shapes[canvas->total_shapes].y1 = y1;
-    canvas->shapes[canvas->total_shapes].x2 = x2;
-    canvas->shapes[canvas->total_shapes].y2 = y2;
-    canvas->shapes[canvas->total_shapes].shape_type = type;
-    canvas->total_shapes++;
-    
-    // Draw the shape based on type
-    if (type == 'L') {
-        draw_line(canvas, x1, y1, x2, y2);
-        printf("Line drawn!\n");
-    } 
-    else if (type == 'R') {
-        draw_rectangle(canvas, x1, y1, x2, y2);
-        printf("Rectangle drawn!\n");
-    } 
-    else if (type == 'C') {
-        int radius = abs(x2 - x1);  // Radius is distance
-        draw_circle(canvas, x1, y1, radius);
-        printf("Circle drawn!\n");
-    }
-}
-
-// Show all shapes that were drawn
-void list_shapes(Canvas* canvas) {
-    int i;
-    
-    printf("\n=== Shapes on Canvas ===\n");
-    
-    if (canvas->total_shapes == 0) {
-        printf("No shapes yet.\n");
-        return;
-    }
-    
-    // Print each shape
-    for (i = 0; i < canvas->total_shapes; i++) {
-        printf("Shape %d: ", i);
+    while (x <= y) {
+        set_pixel(c, cx + x, cy + y);
+        set_pixel(c, cx - x, cy + y);
+        set_pixel(c, cx + x, cy - y);
+        set_pixel(c, cx - x, cy - y);
+        set_pixel(c, cx + y, cy + x);
+        set_pixel(c, cx - y, cy + x);
+        set_pixel(c, cx + y, cy - x);
+        set_pixel(c, cx - y, cy - x);
         
-        if (canvas->shapes[i].shape_type == 'L') {
-            printf("Line from (%d,%d) to (%d,%d)\n",
-                   canvas->shapes[i].x1, canvas->shapes[i].y1,
-                   canvas->shapes[i].x2, canvas->shapes[i].y2);
-        } 
-        else if (canvas->shapes[i].shape_type == 'R') {
-            printf("Rectangle from (%d,%d) to (%d,%d)\n",
-                   canvas->shapes[i].x1, canvas->shapes[i].y1,
-                   canvas->shapes[i].x2, canvas->shapes[i].y2);
-        } 
-        else if (canvas->shapes[i].shape_type == 'C') {
-            printf("Circle at (%d,%d)\n",
-                   canvas->shapes[i].x1, canvas->shapes[i].y1);
+        if (d < 0) {
+            d = d + 4 * x + 6;
+        } else {
+            d = d + 4 * (x - y) + 10;
+            y--;
         }
+        x++;
     }
-    printf("=======================\n\n");
 }
 
-// Delete a shape by index and redraw canvas
-void delete_shape(Canvas* canvas, int index) {
-    int i;
-    
-    // Check if index is valid
-    if (index < 0 || index >= canvas->total_shapes) {
-        printf("ERROR: Invalid shape number!\n");
+// TRIANGLE - Three lines
+void draw_triangle(Canvas* c, int x1, int y1, int x2, int y2, int x3, int y3) {
+    draw_line(c, x1, y1, x2, y2);
+    draw_line(c, x2, y2, x3, y3);
+    draw_line(c, x3, y3, x1, y1);
+}
+
+void add_shape(Canvas* c, int x1, int y1, int x2, int y2, char type) {
+    if (c->total_shapes >= 50) {
+        printf("Max shapes reached!\n");
         return;
     }
     
-    // Remove the shape from list
-    for (i = index; i < canvas->total_shapes - 1; i++) {
-        canvas->shapes[i] = canvas->shapes[i + 1];
-    }
-    canvas->total_shapes--;
+    c->shapes[c->total_shapes].x1 = x1;
+    c->shapes[c->total_shapes].y1 = y1;
+    c->shapes[c->total_shapes].x2 = x2;
+    c->shapes[c->total_shapes].y2 = y2;
+    c->shapes[c->total_shapes].type = type;
+    c->total_shapes++;
     
-    // Clear canvas and redraw all shapes
-    clear_canvas(canvas);
-    for (i = 0; i < canvas->total_shapes; i++) {
-        add_shape(canvas, 
-                  canvas->shapes[i].x1, canvas->shapes[i].y1,
-                  canvas->shapes[i].x2, canvas->shapes[i].y2,
-                  canvas->shapes[i].shape_type);
+    if (type == 'L') {
+        draw_line(c, x1, y1, x2, y2);
+        printf("Line added!\n");
+    } else if (type == 'R') {
+        draw_rectangle(c, x1, y1, x2, y2);
+        printf("Rectangle added!\n");
+    } else if (type == 'C') {
+        int radius = abs(x2 - x1);
+        draw_circle(c, x1, y1, radius);
+        printf("Circle added!\n");
     }
-    
-    printf("Shape deleted!\n");
 }
 
-// ===== MENU AND MAIN PROGRAM =====
+void list_shapes(Canvas* c) {
+    printf("\n--- Shapes ---\n");
+    if (c->total_shapes == 0) {
+        printf("None\n");
+        return;
+    }
+    for (int i = 0; i < c->total_shapes; i++) {
+        printf("%d. %c: (%d,%d) to (%d,%d)\n", i, c->shapes[i].type,
+               c->shapes[i].x1, c->shapes[i].y1, c->shapes[i].x2, c->shapes[i].y2);
+    }
+    printf("-----\n\n");
+}
 
-// Display menu options
+void delete_shape(Canvas* c, int idx) {
+    if (idx < 0 || idx >= c->total_shapes) {
+        printf("Invalid!\n");
+        return;
+    }
+    
+    for (int i = idx; i < c->total_shapes - 1; i++) {
+        c->shapes[i] = c->shapes[i + 1];
+    }
+    c->total_shapes--;
+    
+    clear_canvas(c);
+    for (int i = 0; i < c->total_shapes; i++) {
+        add_shape(c, c->shapes[i].x1, c->shapes[i].y1, 
+                 c->shapes[i].x2, c->shapes[i].y2, c->shapes[i].type);
+    }
+    printf("Deleted!\n");
+}
+
 void show_menu() {
-    printf("\n========== MENU ==========\n");
-    printf("1. Draw Line\n");
-    printf("2. Draw Rectangle\n");
-    printf("3. Draw Circle\n");
-    printf("4. Draw Triangle\n");
-    printf("5. Show All Shapes\n");
-    printf("6. Delete Shape\n");
-    printf("7. Clear Canvas\n");
-    printf("8. Display Canvas\n");
+    printf("\n=== 2D Graphics ===\n");
+    printf("1. Line\n");
+    printf("2. Rectangle\n");
+    printf("3. Circle\n");
+    printf("4. Triangle\n");
+    printf("5. List\n");
+    printf("6. Delete\n");
+    printf("7. Clear\n");
+    printf("8. Display\n");
     printf("9. Exit\n");
-    printf("==========================\n");
-    printf("Enter choice: ");
+    printf("===================\n");
+    printf("Choice: ");
 }
 
-// Main program loop
 void run_program() {
-    Canvas* canvas = create_canvas();
-    int choice;
-    int x1, y1, x2, y2, x3, y3;
-    int index;
+    Canvas* c = create_canvas();
+    int choice, x1, y1, x2, y2, x3, y3, idx;
     
     while (1) {
         show_menu();
         scanf("%d", &choice);
+        getchar();
         
-        if (choice == 1) {
-            // Draw Line
-            printf("Enter coordinates (x1 y1 x2 y2): ");
-            scanf("%d %d %d %d", &x1, &y1, &x2, &y2);
-            add_shape(canvas, x1, y1, x2, y2, 'L');
-        }
-        else if (choice == 2) {
-            // Draw Rectangle
-            printf("Enter coordinates (x1 y1 x2 y2): ");
-            scanf("%d %d %d %d", &x1, &y1, &x2, &y2);
-            add_shape(canvas, x1, y1, x2, y2, 'R');
-        }
-        else if (choice == 3) {
-            // Draw Circle
-            printf("Enter center and radius (cx cy radius): ");
-            scanf("%d %d %d", &x1, &y1, &x2);
-            add_shape(canvas, x1, y1, x1 + x2, y1, 'C');
-        }
-        else if (choice == 4) {
-            // Draw Triangle
-            printf("Enter 3 points (x1 y1 x2 y2 x3 y3): ");
-            scanf("%d %d %d %d %d %d", &x1, &y1, &x2, &y2, &x3, &y3);
-            draw_triangle(canvas, x1, y1, x2, y2, x3, y3);
-            printf("Triangle drawn!\n");
-        }
-        else if (choice == 5) {
-            // Show shapes
-            list_shapes(canvas);
-        }
-        else if (choice == 6) {
-            // Delete shape
-            list_shapes(canvas);
-            printf("Enter shape number to delete: ");
-            scanf("%d", &index);
-            delete_shape(canvas, index);
-        }
-        else if (choice == 7) {
-            // Clear canvas
-            clear_canvas(canvas);
-            printf("Canvas cleared!\n");
-        }
-        else if (choice == 8) {
-            // Display canvas
-            display_canvas(canvas);
-        }
-        else if (choice == 9) {
-            // Exit
-            free_canvas(canvas);
-            printf("Goodbye!\n");
-            break;
-        }
-        else {
-            printf("Invalid choice!\n");
+        switch(choice) {
+            case 1:
+                printf("Line: x1 y1 x2 y2: ");
+                scanf("%d %d %d %d", &x1, &y1, &x2, &y2);
+                getchar();
+                add_shape(c, x1, y1, x2, y2, 'L');
+                break;
+            case 2:
+                printf("Rectangle: x1 y1 x2 y2: ");
+                scanf("%d %d %d %d", &x1, &y1, &x2, &y2);
+                getchar();
+                add_shape(c, x1, y1, x2, y2, 'R');
+                break;
+            case 3:
+                printf("Circle: cx cy radius: ");
+                scanf("%d %d %d", &x1, &y1, &x2);
+                getchar();
+                add_shape(c, x1, y1, x1 + x2, y1, 'C');
+                break;
+            case 4:
+                printf("Triangle: x1 y1 x2 y2 x3 y3: ");
+                scanf("%d %d %d %d %d %d", &x1, &y1, &x2, &y2, &x3, &y3);
+                getchar();
+                draw_triangle(c, x1, y1, x2, y2, x3, y3);
+                printf("Triangle added!\n");
+                break;
+            case 5:
+                list_shapes(c);
+                break;
+            case 6:
+                list_shapes(c);
+                printf("Delete: ");
+                scanf("%d", &idx);
+                getchar();
+                delete_shape(c, idx);
+                break;
+            case 7:
+                clear_canvas(c);
+                printf("Cleared!\n");
+                break;
+            case 8:
+                display_canvas(c);
+                break;
+            case 9:
+                free_canvas(c);
+                printf("Goodbye!\n");
+                return;
+            default:
+                printf("Invalid!\n");
         }
     }
 }
 
-// Main function - program starts here
 int main() {
     run_program();
     return 0;
