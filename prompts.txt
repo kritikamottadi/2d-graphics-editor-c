@@ -79,3 +79,9 @@ Prompt 5: Testing Triangles
 Prompt 6: Prompt Log Submission Request
 ---------------------------------------
 "my professor asked me to add another file to my github repository...it should be a text file with all the prompts i gave to finish my project....can u help me"
+
+
+Prompt 7: Adding Shape Colors
+-----------------------------
+"i like the color option...can we add that"
+

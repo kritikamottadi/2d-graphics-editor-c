@@ -32,6 +32,11 @@ typedef enum {
 } ShapeType;
 
 typedef struct {
+    char val;
+    int color_code; // 1=Green, 2=Yellow, 3=Red, 4=Blue, 5=Cyan, 6=Magenta
+} CanvasCell;
+
+typedef struct {
     int x1, y1;
     int x2, y2;
 } LineData;
@@ -56,6 +61,7 @@ typedef struct {
     int id;
     ShapeType type;
     int is_filled;
+    int color_code;
     union {
         LineData line;
         RectData rect;
@@ -66,7 +72,7 @@ typedef struct {
 } DrawingObject;
 
 // Global State
-char canvas[MAX_HEIGHT][MAX_WIDTH];
+CanvasCell canvas[MAX_HEIGHT][MAX_WIDTH];
 int canvas_width = 60;
 int canvas_height = 20;
 DrawingObject objects[MAX_OBJECTS];
@@ -82,21 +88,24 @@ void display_canvas();
 void add_object_menu();
 void delete_object_menu();
 void modify_object_menu();
+int get_color_selection();
+const char* get_color_name(int code);
 
 // Drawing Utilities
-void draw_pixel_type(int x, int y, char type) {
+void draw_pixel_type_color(int x, int y, char type, int color_code) {
     if (x >= 0 && x < canvas_width && y >= 0 && y < canvas_height) {
-        canvas[y][x] = type;
+        canvas[y][x].val = type;
+        canvas[y][x].color_code = color_code;
     }
 }
 
 // Drawing Algorithms
-void draw_line(int x0, int y0, int x1, int y1) {
+void draw_line(int x0, int y0, int x1, int y1, int color) {
     int dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
     int dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
     int err = dx + dy, e2;
     while (1) {
-        draw_pixel_type(x0, y0, '.'); // outline character is '.'
+        draw_pixel_type_color(x0, y0, '.', color);
         if (x0 == x1 && y0 == y1) break;
         e2 = 2 * err;
         if (e2 >= dy) { err += dy; x0 += sx; }
@@ -104,28 +113,26 @@ void draw_line(int x0, int y0, int x1, int y1) {
     }
 }
 
-void draw_rectangle(int rx, int ry, int rwidth, int rheight, int fill) {
+void draw_rectangle(int rx, int ry, int rwidth, int rheight, int fill, int color) {
     if (fill) {
         for (int y = ry; y < ry + rheight; y++) {
             for (int x = rx; x < rx + rwidth; x++) {
-                draw_pixel_type(x, y, ':'); // interior fill is ':'
+                draw_pixel_type_color(x, y, ':', color);
             }
         }
     }
     // Draw boundary border on top
     for (int i = 0; i < rwidth; i++) {
-        draw_pixel_type(rx + i, ry, '.');
-        draw_pixel_type(rx + i, ry + rheight - 1, '.');
+        draw_pixel_type_color(rx + i, ry, '.', color);
+        draw_pixel_type_color(rx + i, ry + rheight - 1, '.', color);
     }
     for (int i = 0; i < rheight; i++) {
-        draw_pixel_type(rx, ry + i, '.');
-        draw_pixel_type(rx + rwidth - 1, ry + i, '.');
+        draw_pixel_type_color(rx, ry + i, '.', color);
+        draw_pixel_type_color(rx + rwidth - 1, ry + i, '.', color);
     }
 }
 
-void draw_circle(int cx, int cy, int r, int fill) {
-    // Standard vertical-to-horizontal text aspect ratio correction factor.
-    // In terminal fonts, rows are taller than columns.
+void draw_circle(int cx, int cy, int r, int fill, int color) {
     const double ASPECT_RATIO = 2.0; 
     
     int min_y = cy - r;
@@ -141,7 +148,7 @@ void draw_circle(int cx, int cy, int r, int fill) {
                 double dy = y - cy;
                 double dist = sqrt(dx * dx + dy * dy);
                 if (dist <= r + 0.3) {
-                    draw_pixel_type(x, y, ':'); // interior fill
+                    draw_pixel_type_color(x, y, ':', color);
                 }
             }
         }
@@ -154,7 +161,7 @@ void draw_circle(int cx, int cy, int r, int fill) {
             double dy = y - cy;
             double dist = sqrt(dx * dx + dy * dy);
             if (fabs(dist - r) <= 0.6) {
-                draw_pixel_type(x, y, '.'); // boundary outline
+                draw_pixel_type_color(x, y, '.', color);
             }
         }
     }
@@ -171,7 +178,7 @@ int is_point_in_triangle(int px, int py, int x1, int y1, int x2, int y2, int x3,
     return !(has_neg && has_pos);
 }
 
-void draw_triangle(int x1, int y1, int x2, int y2, int x3, int y3, int fill) {
+void draw_triangle(int x1, int y1, int x2, int y2, int x3, int y3, int fill, int color) {
     if (fill) {
         int min_x = x1; if (x2 < min_x) min_x = x2; if (x3 < min_x) min_x = x3;
         int max_x = x1; if (x2 > max_x) max_x = x2; if (x3 > max_x) max_x = x3;
@@ -181,22 +188,23 @@ void draw_triangle(int x1, int y1, int x2, int y2, int x3, int y3, int fill) {
         for (int y = min_y; y <= max_y; y++) {
             for (int x = min_x; x <= max_x; x++) {
                 if (is_point_in_triangle(x, y, x1, y1, x2, y2, x3, y3)) {
-                    draw_pixel_type(x, y, ':');
+                    draw_pixel_type_color(x, y, ':', color);
                 }
             }
         }
     }
     // Draw boundary outline lines
-    draw_line(x1, y1, x2, y2);
-    draw_line(x2, y2, x3, y3);
-    draw_line(x3, y3, x1, y1);
+    draw_line(x1, y1, x2, y2, color);
+    draw_line(x2, y2, x3, y3, color);
+    draw_line(x3, y3, x1, y1, color);
 }
 
 // Canvas & Object Management
 void initialize_canvas() {
     for (int y = 0; y < canvas_height; y++) {
         for (int x = 0; x < canvas_width; x++) {
-            canvas[y][x] = '_';
+            canvas[y][x].val = '_';
+            canvas[y][x].color_code = 0;
         }
     }
 }
@@ -208,29 +216,30 @@ void redraw_all() {
         switch (objects[i].type) {
             case SHAPE_LINE:
                 draw_line(objects[i].data.line.x1, objects[i].data.line.y1,
-                          objects[i].data.line.x2, objects[i].data.line.y2);
+                          objects[i].data.line.x2, objects[i].data.line.y2,
+                          objects[i].color_code);
                 break;
             case SHAPE_RECTANGLE:
                 draw_rectangle(objects[i].data.rect.x, objects[i].data.rect.y,
                                objects[i].data.rect.width, objects[i].data.rect.height,
-                               objects[i].is_filled);
+                               objects[i].is_filled, objects[i].color_code);
                 break;
             case SHAPE_CIRCLE:
                 draw_circle(objects[i].data.circle.cx, objects[i].data.circle.cy,
-                            objects[i].data.circle.radius, objects[i].is_filled);
+                            objects[i].data.circle.radius, objects[i].is_filled,
+                            objects[i].color_code);
                 break;
             case SHAPE_TRIANGLE:
                 draw_triangle(objects[i].data.triangle.x1, objects[i].data.triangle.y1,
                               objects[i].data.triangle.x2, objects[i].data.triangle.y2,
                               objects[i].data.triangle.x3, objects[i].data.triangle.y3,
-                              objects[i].is_filled);
+                              objects[i].is_filled, objects[i].color_code);
                 break;
         }
     }
 }
 
 void display_canvas() {
-    // Clear screen and go to top-left
     printf("\033[H\033[J");
     printf("\033[1;36m==================== 2D GRAPHICS EDITOR ====================\033[0m\n\n");
     
@@ -255,13 +264,19 @@ void display_canvas() {
     for (int y = 0; y < canvas_height; y++) {
         printf("%2d |", y);
         for (int x = 0; x < canvas_width; x++) {
-            char c = canvas[y][x];
-            if (c == '.') {
-                printf("\033[1;32m%c\033[0m", c); // green outline
-            } else if (c == ':') {
-                printf("\033[1;33m%c\033[0m", c); // yellow fill
+            CanvasCell cell = canvas[y][x];
+            if (cell.val == '_') {
+                printf("\033[90m%c\033[0m", cell.val); // dark grey background
             } else {
-                printf("\033[90m%c\033[0m", c); // dark grey background
+                switch (cell.color_code) {
+                    case 1: printf("\033[1;32m%c\033[0m", cell.val); break; // Green
+                    case 2: printf("\033[1;33m%c\033[0m", cell.val); break; // Yellow
+                    case 3: printf("\033[1;31m%c\033[0m", cell.val); break; // Red
+                    case 4: printf("\033[1;34m%c\033[0m", cell.val); break; // Blue
+                    case 5: printf("\033[1;36m%c\033[0m", cell.val); break; // Cyan
+                    case 6: printf("\033[1;35m%c\033[0m", cell.val); break; // Magenta
+                    default: printf("%c", cell.val); break;
+                }
             }
         }
         printf("|\n");
@@ -273,29 +288,42 @@ void display_canvas() {
     printf("+\n\n");
 }
 
+const char* get_color_name(int code) {
+    switch (code) {
+        case 1: return "Green";
+        case 2: return "Yellow";
+        case 3: return "Red";
+        case 4: return "Blue";
+        case 5: return "Cyan";
+        case 6: return "Magenta";
+        default: return "Unknown";
+    }
+}
+
 void print_object_details(DrawingObject* obj) {
     const char* fill_str = obj->is_filled ? "Filled" : "Outline";
+    const char* color_str = get_color_name(obj->color_code);
     switch (obj->type) {
         case SHAPE_LINE:
-            printf("Line from (%d, %d) to (%d, %d)",
+            printf("Line from (%d, %d) to (%d, %d) [Color: %s]",
                    obj->data.line.x1, obj->data.line.y1,
-                   obj->data.line.x2, obj->data.line.y2);
+                   obj->data.line.x2, obj->data.line.y2, color_str);
             break;
         case SHAPE_RECTANGLE:
-            printf("Rectangle at (%d, %d) width %d, height %d [%s]",
+            printf("Rectangle at (%d, %d) width %d, height %d [%s] [Color: %s]",
                    obj->data.rect.x, obj->data.rect.y,
-                   obj->data.rect.width, obj->data.rect.height, fill_str);
+                   obj->data.rect.width, obj->data.rect.height, fill_str, color_str);
             break;
         case SHAPE_CIRCLE:
-            printf("Circle at (%d, %d) radius %d [%s]",
+            printf("Circle at (%d, %d) radius %d [%s] [Color: %s]",
                    obj->data.circle.cx, obj->data.circle.cy,
-                   obj->data.circle.radius, fill_str);
+                   obj->data.circle.radius, fill_str, color_str);
             break;
         case SHAPE_TRIANGLE:
-            printf("Triangle Vertices: (%d, %d), (%d, %d), (%d, %d) [%s]",
+            printf("Triangle Vertices: (%d, %d), (%d, %d), (%d, %d) [%s] [Color: %s]",
                    obj->data.triangle.x1, obj->data.triangle.y1,
                    obj->data.triangle.x2, obj->data.triangle.y2,
-                   obj->data.triangle.x3, obj->data.triangle.y3, fill_str);
+                   obj->data.triangle.x3, obj->data.triangle.y3, fill_str, color_str);
             break;
     }
 }
@@ -323,6 +351,17 @@ int get_int_input(const char* prompt, int min_val, int max_val) {
     }
 }
 
+int get_color_selection() {
+    printf("\033[1;36mSelect Shape Color:\033[0m\n");
+    printf("1. \033[1;32mGreen\033[0m\n");
+    printf("2. \033[1;33mYellow\033[0m\n");
+    printf("3. \033[1;31mRed\033[0m\n");
+    printf("4. \033[1;34mBlue\033[0m\n");
+    printf("5. \033[1;36mCyan\033[0m\n");
+    printf("6. \033[1;35mMagenta\033[0m\n");
+    return get_int_input("Enter choice (1-6): ", 1, 6);
+}
+
 // Shape Add Menu
 void add_object_menu() {
     if (object_count >= MAX_OBJECTS) {
@@ -346,6 +385,7 @@ void add_object_menu() {
     obj.id = next_id++;
     obj.is_active = 1;
     obj.is_filled = 0;
+    obj.color_code = 1; // default Green
 
     switch (choice) {
         case 1: // Line
@@ -385,6 +425,8 @@ void add_object_menu() {
             obj.is_filled = get_int_input("Fill shape? (0 = Outline only, 1 = Filled): ", 0, 1);
             break;
     }
+
+    obj.color_code = get_color_selection();
 
     objects[object_count++] = obj;
     redraw_all();
@@ -507,6 +549,8 @@ void modify_object_menu() {
             obj->is_filled = get_int_input("Fill shape? (0 = Outline only, 1 = Filled): ", 0, 1);
             break;
     }
+
+    obj->color_code = get_color_selection();
 
     redraw_all();
     printf("\033[1;32mObject updated successfully!\033[0m\n");
