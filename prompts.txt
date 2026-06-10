@@ -1,0 +1,81 @@
+PROMPTS USED FOR THE 2D GRAPHICS EDITOR C PROJECT
+=================================================
+
+Below is the chronological list of prompts and feature requests provided to develop and refine the 2D Graphics Editor C program:
+
+Prompt 1: Initial Requirements
+------------------------------
+"Create a complete C program that implements a menu-driven 2D Graphics Editor using a 2D character array as the drawing canvas. Follow these requirements strictly:
+
+1. Canvas Setup
+   - Use a 2D character array as the drawing canvas.
+   - Initialize the canvas with the character '_' (underscore).
+   - Graphical objects should be drawn using the character '*' (asterisk).
+
+2. Functions to Implement
+   - Function to draw a circle.
+   - Function to draw a rectangle.
+   - Function to draw a line.
+   - Function to draw a triangle.
+   - Function to display the picture (print the 2D array to the console).
+
+3. Menu-Driven Operations
+   - Add objects to the picture.
+   - Delete objects from the picture.
+   - Modify objects in the picture.
+   - Display the picture.
+
+4. Implementation Details
+   - Use modular functions for each shape and operation.
+   - Ensure the program is menu-driven (user chooses options from a menu).
+   - Use clear prompts for user input (coordinates, dimensions, etc.).
+   - Deletion should restore affected cells back to '_' (underscore).
+   - Modification should allow changing dimensions or position of an existing object.
+
+5. Optional Enhancement
+   - Integrate ncurses library to create menus and improve drawing/display if possible.
+
+6. Submission Requirements
+   - Code must be original and complete.
+   - Daily push to GitHub repository is mandatory.
+   - Final submission must include the GitHub repository link in Moodle.
+
+7. Evaluation Rubrics
+   - Copied code -> 0 marks.
+   - No submission -> 1 mark.
+   - Copied but submitted -> 2 marks.
+   - Original but partially complete -> 3 marks.
+   - Original almost complete -> 4 marks.
+   - Original complete and functional -> 5 marks.
+
+Deliverable: A fully working C program file (graphics_editor.c) with all required functions, menu-driven interface, and clear documentation in comments."
+
+
+Prompt 2: Fine-Tuning & Customizations
+--------------------------------------
+"i want the following changes: 
+1. there should be no shapes displayed as soon as i run the program...it should ask the user first 
+2. can the shape be drawn with '.' character instead
+3. the outline of the shape should be in a differernt colour so we can differentiate it from the canvas
+4. the circle doesnt look like a circle...look like an oval...make it more accurate
+5. is there a way to fill the shapes so they are clearer"
+
+
+Prompt 3: Deployment & Submission Help
+---------------------------------------
+"amazing now how do i submit this to moodle and push it to github and stuff....i have a very basic undestanding so guide me step by step"
+
+
+Prompt 4: Integration with Existing History
+--------------------------------------------
+"there is a slight problem i had already done a very basic version of this code on vs code and pushed through that...i already made 2 commits...and i want this one to be like that too"
+
+
+Prompt 5: Testing Triangles
+---------------------------
+"give sample input to test triangle"
+
+
+Prompt 6: Prompt Log Submission Request
+---------------------------------------
+"my professor asked me to add another file to my github repository...it should be a text file with all the prompts i gave to finish my project....can u help me"
